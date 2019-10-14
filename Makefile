@@ -1,4 +1,4 @@
 all :
-	cc src/mpp.c -o ./a.out
+	cc src/mpp.c -o ./mpp
 clean :
-	rm a.out
+	rm mpp

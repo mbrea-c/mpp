@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 
 #define MAXCOUNT 1000
 #define MAXTOKEN 1000
@@ -23,9 +24,13 @@ typedef struct macro {
 	char *repl; //replacement string
 	macrovar *vars;
 } macro;
-//TODO: NEEDS TO HANDLE VARS
+enum verbosity { QUIET=0, DEFAULT=1, VERBOSE=2, DEBUG=3 };
 
+void print_log(int verbosity, char *msg, ...);
 void fatal(char *msg);
+void fatalf(char *msg, ...);
+void __debug(FILE *fp);
+
 macro *findm(char *); //returns NULL on not found, repl otherwise
 int insertm(char *name, char *repl, macrovar *vars); //returns 0 on error, 1 on success
 int gettoken(FILE *fp); 
@@ -37,9 +42,9 @@ char *findvar(char *str, macrovar *varnames, char **vars);
 macro *getm(FILE *fp);
 void printallmacros();
 void printallvars(macrovar *m);
-void __debug(FILE *fp);
 
 char token[MAXTOKEN];
+int g_verbosity = DEBUG;
 
 int main(int argc, char **argv)
 {
@@ -81,6 +86,15 @@ void __debug(FILE *fp)
 	int c;
 	while ((c = gettoken(fp)) != EOF) {
 		printf(token);
+	}
+}
+
+void print_log(int verbosity, char *msg, ...)
+{
+	if (verbosity >= g_verbosity) {
+		va_list ap;
+		va_start(ap, msg);
+		vprintf(msg, ap);
 	}
 }
 
@@ -178,7 +192,7 @@ void parsem(FILE *fp)
 					fatal("error: macro syntax incorrect (.macro)\n");
 					break;
 				}
-			} else if (strcmp(token, ".macro_end") == 0) {
+			} else if (strcmp(token, ".end_macro") == 0) {
 				switch (state) {
 					case 6:
 					printf("inserting macro\n");
@@ -186,7 +200,7 @@ void parsem(FILE *fp)
 					state = 0;
 					break;
 					default:
-					fatal("error: macro syntax incorrect (.macro_end)\n");
+					fatal("error: macro syntax incorrect (.end_macro)\n");
 					break;
 				}
 			} else {
@@ -340,30 +354,33 @@ void substm(FILE *ifp, FILE *ofp) //TODO: Implement parsing args and replacing i
 
 	state = 0;
 	nvars = 0;
-	printf("DEBUG: Entering substm ---------------------\n", state, c, c, token);
+	print_log(DEBUG, "DEBUG: Entering substm ---------------------\n", state, c, c, token);
 	while ((c = gettoken(ifp)) != EOF) {
-		printf("DEBUG: state: %d || c: %c(%d);token: %s\n", state, c, c, token);
+		print_log(DEBUG, "DEBUG: state: %d || c: %c(%d);token: %s\n", state, c, c, token);
 		if (c == '.') {
 			if (strcmp(token, ".macro") == 0 && state == 0) {
 				state = 1;
-			} else if (strcmp(token, ".macro_end") == 0 && state == 1) {
+			} else if (strcmp(token, ".end_macro") == 0 && state == 1) {
+				print_log(DEBUG, "DEBUG: .end_macro detected\n");
 				state = 0;
 			} else {
+				print_log(DEBUG, "DEBUG: printing token to out\n");
 				fprintf(ofp, token);
 			}
-		}
-		if (c == '(') {
+		} else if (c == '(') {
 			if (state == 2) {
 				state = 3;
 				strcat(tmpstr, token);
 			} else if (state > 1) {
+				state = 0;
 				fprintf(ofp, tmpstr);
 				fprintf(ofp, token);
+				strcpy(tmpstr, "");
 				for (i = 0; i < nvars; i++)
 					free(vars[i]);
 			}
-		}
-		if (c == 'a') {
+		} else if (c == 'a') { // Handle alphanumeric token
+			print_log(DEBUG, "DEBUG: alphanumeric token detected\n");
 			if (state == 3) {
 				state = 4;
 				strcat(tmpstr, token);
@@ -372,22 +389,44 @@ void substm(FILE *ifp, FILE *ofp) //TODO: Implement parsing args and replacing i
 			} else if (state > 1) {
 				fprintf(ofp, tmpstr);
 				fprintf(ofp, token);
+				strcpy(tmpstr, "");
 				for (i = 0; i < nvars; i++)
 					free(vars[i]);
+			} else if (state == 0) {
+				if ((tmpm = findm(token)) != NULL) {
+					print_log(DEBUG, "DEBUG: found macro\n");
+					if  (tmpm->vars == NULL) {
+						print_log(DEBUG, "DEBUG: expecting no args\n");
+						fprintf(ofp, tmpm->repl);
+					} else {
+						state = 2;
+						print_log(DEBUG, "DEBUG: expecting args\n");
+						strcpy(tmpstr, token);
+					}
+				} else {
+					fprintf(ofp, token);
+				}
 			}
-		}
-		if (c == ',') {
+		} else if (c == ',') {
 			if (state == 4) {
 				state = 3;
 				strcat(tmpstr, token);
 			} else if (state > 1) {
 				fprintf(ofp, tmpstr);
 				fprintf(ofp, token);
+				strcpy(tmpstr, "");
 				for (i = 0; i < nvars; i++)
 					free(vars[i]);
+			} else if (state == 0) {
+				fprintf(ofp, token);
 			}
-		}
-		if (c == ')') {
+		} else if (c == ' ') {
+			if (state == 0) {
+				fprintf(ofp, token);
+			} else if (state != 1) {
+				strcat(tmpstr, token);
+			}
+		} else if (c == ')') {
 			if (state == 4) {
 				state = 0;
 				//DEBUG
@@ -395,26 +434,17 @@ void substm(FILE *ifp, FILE *ofp) //TODO: Implement parsing args and replacing i
 					printf("%s\n", vars[i]);
 				}
 				//END DEBUG
-				printf("segfault hasn't happened yet\n");
 				replacevars(tmpstr, tmpm, vars);
 				fprintf(ofp, tmpstr);
 			} else if (state > 1) {
 				fprintf(ofp, tmpstr);
 				fprintf(ofp, token);
+				strcpy(tmpstr, "");
 				for (i = 0; i < nvars; i++)
 					free(vars[i]);
 			}
 		} else if (state == 0) {
-			if ((tmpm = findm(token)) != NULL) {
-				if  (tmpm->vars == NULL) {
-					fprintf(ofp, tmpm->repl);
-				} else {
-					state = 2;
-					strcpy(tmpstr, token);
-				}
-			} else {
-				fprintf(ofp, token);
-			}
+			fprintf(ofp, token);
 		}
 	}
 }

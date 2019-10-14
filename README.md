@@ -15,3 +15,4 @@ Right now it is a functional prototype, but requires a lot of refactoring. To co
 	* Commandline arguments to set output verbosity (debug/verbose/default/quiet)
 * Code quality
 	* Several functions need refactoring
+	* Reorder function definitions and global variable declarations to make clear which functions need access to which variables
