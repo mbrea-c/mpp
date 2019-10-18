@@ -186,164 +186,183 @@ void parsem(FILE *fp)
 	printf("DEBUG: Entering parsem ---------------------\n", state, c, c, token);
 	while ((c = gettoken(fp)) != EOF) {
 		printf("DEBUG: state: %d || c: %c(%d);token: %s\n", state, c, c, token);
-		switch (c) {
+		switch (state) {
+		case 0:
+			switch(c) {
 			case '.':
-			if (strcmp(token, ".macro") == 0) {
-				switch (state) {
-					case 0:
+				if (strcmp(token, ".macro") == 0)
 					state = 1;
-					break;
-					default:
-					fatal("error: macro syntax incorrect (.macro)\n");
-					break;
-				}
-			} else if (strcmp(token, ".end_macro") == 0) {
-				switch (state) {
-					case 6:
-					printf("inserting macro\n");
-					insertm(name, tempm, vars);
-					state = 0;
-					break;
-					default:
-					fatal("error: macro syntax incorrect (.end_macro)\n");
-					break;
-				}
-			} else {
-				switch (state) {
-					case 0:
-					break;
-					case 6:
-					strcat(tempm, token);
-					break;
-					default:
-					fatal("error: macro syntax incorrect (.smthn)\n");
-					break;
-				}
+				else if (strcmp(token, ".end_macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				break;
+			case 'a': case '\n': case ' ':
+			case '(': case ')':  case '$': 
+			case ',':
+				break;
 			}
 			break;
+		case 1:
+			switch(c) {
+			case '.':
+				if (strcmp(token, ".macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else if (strcmp(token, ".end_macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				break;
 			case 'a':
-			switch (state) {
-				case 0:
-				break;
-				case 6:
-				strcat(tempm, token);
-				break;
-				case 1:
 				strncpy(name, token, MAXNAME);
 				state = 2;
 				break;
-				default:
-				fatal("error: macro syntax incorrect\n");
+			case ' ':
+				break;
+			case '\n': case ')': case '$': 
+			case ',': case '(': default:
+				fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
 				break;
 			}
 			break;
-			case '\n':
-			switch (state) {
-				case 0:
+		case 2:
+			switch(c) {
+			case '.':
+				if (strcmp(token, ".macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else if (strcmp(token, ".end_macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
 				break;
-				case 2: case 5:
+			case 'a':
+				strncpy(name, token, MAXNAME);
+				state = 2;
+				break;
+			case '\n': 
 				state = 6;
 				break;
-				case 6:
-				strcat(tempm, token);
-				break;
-				default:
-				fatal("error: macro syntax incorrect (newline)\n");
-				break;
-			}
-			break;
-			case ' ':
-			switch (state) {
-				case 0: case 1: case 2: case 5:
-				break;
-				case 6:
-				strcat(tempm, token);
-				break;
-				default:
-				break;
-			}
-			break;
 			case '(':
-			switch (state) {
-				case 0:
-				break;
-				case 2:
 				state = 8;
 				break;
-				case 6:
-				strcat(tempm, token);
+			case ' ':
 				break;
-				default:
-				fatal("error: macro syntax incorrect (open bracket)\n");
+			case ')': case '$': case ',':
+			default:
+				fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
 				break;
 			}
 			break;
-			case '$':
-			switch (state) {
-				case 0:
+		case 3:
+			switch(c) {
+			case '.':
+				if (strcmp(token, ".macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else if (strcmp(token, ".end_macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
 				break;
-				case 8:
-				vars = malloc(sizeof(macrovar));
-				lastvar = vars;
-				*lastvar = (macrovar) {malloc(strlen(token)), NULL};
-				strcpy(lastvar->name, token);
-				state = 4;
-				break;
-				case 3:
+			case '$': 
 				lastvar->nxt = malloc(sizeof(macrovar));
 				lastvar = lastvar->nxt;
 				*lastvar = (macrovar) {malloc(strlen(token)), NULL};
 				strcpy(lastvar->name, token);
 				state = 4;
 				break;
-				case 6:
-				strcat(tempm, token);
+			case ' ':
 				break;
-				default:
-				fatal("error: macro syntax incorrect ($)\n");
-				break;
-			}
-			break;
-			case ',':
-			switch (state) {
-				case 0:
-				break;
-				case 4:
-				state = 3;
-				break;
-				case 6:
-				strcat(tempm, token);
-				break;
-				default:
-				fprintf(stderr, "state = %d\n", state);
-				fatal("error: macro syntax incorrect ($)\n");
+			case 'a': case '\n': case ')':
+			case ',': case '(': default:
+				fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
 				break;
 			}
 			break;
+		case 4:
+			switch(c) {
+			case '.':
+				if (strcmp(token, ".macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else if (strcmp(token, ".end_macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				break;
 			case ')':
-			switch (state) {
-				case 0:
-				break;
-				case 4:
 				state = 5;
 				break;
-				case 6:
-				strcat(tempm, token);
+			case ',':
+				state = 3;
 				break;
-				default:
-				fatal("error: macro syntax incorrect ($)\n");
+			case ' ':
+				break;
+			case 'a': case '\n': case '$': 
+			case '(': default:
+				fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
 				break;
 			}
 			break;
-			default:
-			switch (state) {
-				case 0:
+		case 5:
+			switch(c) {
+			case '.':
+				if (strcmp(token, ".macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else if (strcmp(token, ".end_macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
 				break;
-				case 6:
+			case '\n': 
+				state = 6;
+				break;
+			case ' ':
+				break;
+			case 'a': case ')': case '$': 
+			case ',': case '(': default:
+				fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				break;
+			}
+			break;
+		case 6:
+			switch(c) {
+			case '.':
+				if (strcmp(token, ".macro") == 0) {
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				} else if (strcmp(token, ".end_macro") == 0) {
+					printf("inserting macro\n");
+					insertm(name, tempm, vars);
+					state = 0;
+				} else {
+					strcat(tempm, token);
+				}
+				break;
+			case 'a': case '\n': case ')':
+			case '$': case ',':  case '(':
+			case ' ': default:
 				strcat(tempm, token);
 				break;
-				default:
-				fatal("error: macro syntax incorrect\n");
+			}
+			break;
+		case 8:
+			switch(c) {
+			case '.':
+				if (strcmp(token, ".macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else if (strcmp(token, ".end_macro") == 0)
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				else
+					fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
+				break;
+			case '$': 
+				vars = malloc(sizeof(macrovar));
+				lastvar = vars;
+				*lastvar = (macrovar) {malloc(strlen(token)), NULL};
+				strcpy(lastvar->name, token);
+				state = 4;
+				break;
+			case ' ':
+				break;
+			case 'a': case '\n': case ')':
+			case ',': case '(': default:
+				fatalf("error: macro syntax incorrect (%c : %s)\n", c, token);
 				break;
 			}
 			break;
