@@ -51,17 +51,14 @@ int main(int argc, char **argv)
 	FILE *inpfile, *outfile; 
 
 	if (argc != 3) {
-		fprintf(stderr, "usage: mpp <input file> <output file>\n");
-		exit(1);
+		fatalf("usage: mpp <input file> <output file>\n");
 	}
 	if ((inpfile = fopen(argv[1], "r")) == NULL) {
 		printf("%s\n", argv[1]);
-		fprintf(stderr, "error: file couldn't be opened\n");
-		exit(1);
+		fatalf("error: file %s couldn't be opened\n", argv[1]);
 	}
 	if ((outfile = fopen(argv[2], "w")) == NULL) {
-		fprintf(stderr, "error: file couldn't be opened\n");
-		exit(1);
+		fatalf("error: file %s couldn't be opened\n", argv[2]);
 	}
 
 	/*__debug(inpfile);*/
@@ -77,7 +74,15 @@ int main(int argc, char **argv)
 
 void fatal(char *msg)
 {
-	fprintf(stderr, "%s", msg);
+	fprintf(stderr, msg);
+	exit(1);
+}
+
+void fatalf(char *msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	vfprintf(stderr, msg, ap);
 	exit(1);
 }
 
@@ -378,6 +383,8 @@ void substm(FILE *ifp, FILE *ofp) //TODO: Implement parsing args and replacing i
 				strcpy(tmpstr, "");
 				for (i = 0; i < nvars; i++)
 					free(vars[i]);
+			} else if (state == 0) {
+				fprintf(ofp, token);
 			}
 		} else if (c == 'a') { // Handle alphanumeric token
 			print_log(DEBUG, "DEBUG: alphanumeric token detected\n");
@@ -442,6 +449,8 @@ void substm(FILE *ifp, FILE *ofp) //TODO: Implement parsing args and replacing i
 				strcpy(tmpstr, "");
 				for (i = 0; i < nvars; i++)
 					free(vars[i]);
+			} else if (state == 0) {
+				fprintf(ofp, token);
 			}
 		} else if (state == 0) {
 			fprintf(ofp, token);
@@ -478,7 +487,7 @@ int gettoken(FILE *fp)
 {
 	int c, i;
 	
-	if ((c = getc(fp)) == ' ' || c == '\t') { //skip whitespace
+	if ((c = getc(fp)) == ' ' || c == '\t') { //handle whitespace
 		token[0] = c;
 		token[1] = '\0';
 		return ' ';
@@ -487,7 +496,7 @@ int gettoken(FILE *fp)
 	if (c == '#') {
 		while ((c = getc(fp)) != '\n' && c != EOF) //ignore comments
 			;
-		c = getc(fp);
+		/*c = getc(fp);*/
 	}
 	if ((token[0] = c) == '.') { //assembler directive
 		for (i = 1; isalnum(token[i] = getc(fp)) || token[i] == '_'; i++)
@@ -501,7 +510,7 @@ int gettoken(FILE *fp)
 		return c;
 	}
 	if (isalnum(token[0] = c)) { //word/number (no need to differentiate for a preprocessor)
-		for (i = 1; isalnum(token[i] = getc(fp)); i++)
+		for (i = 1; isalnum(token[i] = getc(fp)) || token[i] == '_'; i++)
 			;
 		ungetc(token[i], fp);
 		token[i] = '\0';
@@ -553,7 +562,7 @@ int sgettoken(char *str, int *ind)
 		return c;
 	}
 	if (isalnum(token[0] = c)) { //word/number (no need to differentiate for a preprocessor)
-		for (i = 1; isalnum(token[i] = str[(*ind)++]); i++)
+		for (i = 1; isalnum(token[i] = str[(*ind)++]) || token[i] == '_'; i++)
 			;
 		(*ind)--;
 		token[i] = '\0';
