@@ -1,3 +1,5 @@
+UPDATE: I have found a critical bug in the design of the state machine, meaning that unlike I previously thought, this program is not working at all as it should. As I am going through exams right now, I will not be able to fix this in the next two weeks.
+
 # mpp
 A basic MIPS assembly preprocessor that processes macros. It is meant to be used in conjunction with SPIM, since it does not support macros by itself. The purpose of this project is double: while I do need an assembly preprocessor for my MIPS coursework, I chose to use C (and avoid the use of regex) both to get some practice in the language and because I enjoy using it.
 
